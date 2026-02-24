@@ -48,6 +48,8 @@ class GameState:
     board: tuple[Card, ...]
     # number of board cards currently revealed (3 on flop, 4 on turn, 5 on river; 0 preflop)
     revealed_board_cards: int
+    # total chips invested this hand per player (for tracking total commitment for all-in logic, etc)
+    total_commit: tuple[Chips, ...]
 
     @property
     def n(self) -> int:
@@ -122,4 +124,5 @@ def initial_state(cfg: GameConfig, deal: Deal, dealer_pos: int = 0) -> GameState
         hole_cards=deal.hole_cards,
         board=deal.board,
         revealed_board_cards=0,
+        total_commit=tuple(Chips(0) for _ in range(n)),
     )

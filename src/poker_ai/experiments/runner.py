@@ -6,6 +6,7 @@ from dataclasses import dataclass, replace
 from poker_ai.agent.interfaces import Agent, AgentContext
 from poker_ai.engine.dealing import deal_nlhe
 from poker_ai.engine.observe import observe
+from poker_ai.engine.payout import settle_terminal_hand
 from poker_ai.engine.rules import apply_action
 from poker_ai.engine.rules import legal_actions as legal_actions_fn
 from poker_ai.engine.showdown import winners
@@ -104,12 +105,15 @@ def play_hand(
 
     win_list = winners(state.hole_cards, state.board, state.active)
     win = tuple(win_list)
-    state_paid = _pay_winners(state, win)
+    pot_paid = Chips(
+        sum(int(x) for x in state.total_commit) + sum(int(x) for x in state.street_commit)
+    )
+    state_paid, main_winners = settle_terminal_hand(state)
     return HandResult(
         final_state=state_paid,
         num_actions=len(state.history),
-        winners=win,
-        pot_paid=Chips(_pot_total(state)),
+        winners=tuple(main_winners),
+        pot_paid=pot_paid,
     )
 
 

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import itertools
 from collections import Counter
+from collections.abc import Sequence
 
 from poker_ai.engine.cards import Card
 
@@ -79,6 +80,23 @@ def winners(
     for i, is_in in enumerate(active):
         if not is_in:
             continue
+        cards7 = (hole_cards[i][0], hole_cards[i][1], *board)
+        ranks.append((best_of_7(cards7), i))
+
+    if not ranks:
+        return []
+
+    best_rank = max(r[0] for r in ranks)
+    return [i for r, i in ranks if r == best_rank]
+
+
+def winners_among(
+    seats: Sequence[int],
+    hole_cards: tuple[tuple[Card, Card], ...],
+    board: tuple[Card, ...],
+) -> list[int]:
+    ranks: list[tuple[tuple[int, list[int]], int]] = []
+    for i in seats:
         cards7 = (hole_cards[i][0], hole_cards[i][1], *board)
         ranks.append((best_of_7(cards7), i))
 

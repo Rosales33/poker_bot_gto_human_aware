@@ -50,7 +50,9 @@ def _betting_round_complete(state: GameState, next_to_act: int) -> bool:
 
 
 def _advance_street(state: GameState) -> GameState:
-    pot = Chips(int(state.pot) + sum(int(x) for x in state.street_commit))
+    total_commit = tuple(
+        Chips(int(state.total_commit[i]) + int(state.street_commit[i])) for i in range(state.n)
+    )
     reset_commit = tuple(Chips(0) for _ in range(state.n))
 
     if state.street == Street.PREFLOP:
@@ -90,7 +92,7 @@ def _advance_street(state: GameState) -> GameState:
         state,
         street=next_street,
         to_act=first_to_act,
-        pot=pot,
+        total_commit=total_commit,
         street_commit=reset_commit,
         current_bet=Chips(0),
         last_raise=Chips(0),
