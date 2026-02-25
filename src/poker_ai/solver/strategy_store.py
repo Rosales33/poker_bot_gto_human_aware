@@ -6,12 +6,15 @@ from pathlib import Path
 
 import numpy as np
 
-from poker_ai.abstraction.action_abstraction import AbstractAction
+from poker_ai.abstraction.action_abstraction import AbstractAction, ActionAbstractionConfig
 from poker_ai.abstraction.infoset import InfoSetKey
+from poker_ai.engine.state import GameConfig
 
 
 @dataclass(frozen=True, slots=True)
 class StoredStrategy:
+    game_cfg: GameConfig
+    action_abs_cfg: ActionAbstractionConfig
     action_lists: dict[InfoSetKey, list[AbstractAction]]
     strategy_sum: dict[InfoSetKey, np.ndarray]
 

@@ -3,12 +3,11 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, replace
 
-from poker_ai.agent.interfaces import Agent, AgentContext
+from poker_ai.agent.policy import Policy
 from poker_ai.engine.dealing import deal_nlhe
 from poker_ai.engine.observe import observe
 from poker_ai.engine.payout import settle_terminal_hand
 from poker_ai.engine.rules import apply_action
-from poker_ai.engine.rules import legal_actions as legal_actions_fn
 from poker_ai.engine.showdown import winners
 from poker_ai.engine.state import GameConfig, GameState, initial_state
 from poker_ai.engine.types import Chips, Street
@@ -63,14 +62,10 @@ def _pay_winners(state: GameState, winner_seats: Sequence[int]) -> GameState:
 
 
 def play_hand(
-    cfg: GameConfig,
-    agents: Sequence[Agent],
-    dealer_pos: int,
-    hand_id: int,
-    base_seed: int = 0,
+    cfg: GameConfig, policies: Sequence[Policy], dealer_pos: int, hand_id: int, base_seed: int = 0
 ) -> HandResult:
-    if len(agents) != cfg.num_players:
-        raise ValueError("Need one agent per seat.")
+    if len(policies) != cfg.num_players:
+        raise ValueError("Need one policy per seat.")
 
     deal = deal_nlhe(cfg.num_players, hand_id=hand_id, base_seed=base_seed)
     state = initial_state(cfg, deal=deal, dealer_pos=dealer_pos)
@@ -78,9 +73,8 @@ def play_hand(
 
     while not state.is_terminal():
         seat = state.to_act
-        acts = legal_actions_fn(state)
         obs = observe(state, seat)
-        action = agents[seat].choose_action(obs, acts, AgentContext(seat=seat))
+        action = policies[seat].act(state, obs)
         state = apply_action(state, action)
 
         if len(state.history) > 10_000:
@@ -119,7 +113,7 @@ def play_hand(
 
 def play_match(
     cfg: GameConfig,
-    agents: Sequence[Agent],
+    policies: Sequence[Policy],
     num_hands: int,
     dealer_start: int = 0,
     base_seed: int = 0,
@@ -128,7 +122,60 @@ def play_match(
     dealer = dealer_start
     for hand_id in range(num_hands):
         results.append(
-            play_hand(cfg, agents, dealer_pos=dealer, hand_id=hand_id, base_seed=base_seed)
+            play_hand(cfg, policies, dealer_pos=dealer, hand_id=hand_id, base_seed=base_seed)
         )
         dealer = (dealer + 1) % cfg.num_players
     return results
+
+
+def play_hand_with_stacks(
+    cfg: GameConfig,
+    policies: Sequence[Policy],
+    dealer_pos: int,
+    hand_id: int,
+    stacks: tuple[Chips, ...],
+    base_seed: int = 0,
+) -> GameState:
+    deal = deal_nlhe(cfg.num_players, hand_id=hand_id, base_seed=base_seed)
+    state = initial_state(cfg, deal=deal, dealer_pos=dealer_pos, starting_stacks=stacks)
+    state = replace(state, hand_id=hand_id)
+
+    while not state.is_terminal():
+        seat = state.to_act
+        obs = observe(state, seat)
+        action = policies[seat].act(state, obs)
+        state = apply_action(state, action)
+
+        if len(state.history) > 10_000:
+            raise RuntimeError("Too many actions in one hand; possible rules bug.")
+
+    state_paid, _main = settle_terminal_hand(state)
+    return state_paid
+
+
+def play_match_bankroll(
+    cfg: GameConfig,
+    policies: Sequence[Policy],
+    num_hands: int,
+    dealer_start: int = 0,
+    base_seed: int = 0,
+) -> list[tuple[int, tuple[Chips, ...]]]:
+    """
+    Returns a trajectory: [(hand_id, stacks_after_hand), ...]
+    """
+    if len(policies) != cfg.num_players:
+        raise ValueError("Need one policy per seat.")
+
+    stacks = tuple(cfg.starting_stack for _ in range(cfg.num_players))
+    dealer = dealer_start
+    traj: list[tuple[int, tuple[Chips, ...]]] = []
+
+    for hand_id in range(num_hands):
+        final_state = play_hand_with_stacks(
+            cfg, policies, dealer_pos=dealer, hand_id=hand_id, stacks=stacks, base_seed=base_seed
+        )
+        stacks = final_state.stacks
+        traj.append((hand_id, stacks))
+        dealer = (dealer + 1) % cfg.num_players
+
+    return traj

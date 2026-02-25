@@ -62,14 +62,24 @@ class GameState:
         return self.street == Street.SHOWDOWN
 
 
-def initial_state(cfg: GameConfig, deal: Deal, dealer_pos: int = 0) -> GameState:
+def initial_state(
+    cfg: GameConfig,
+    deal: Deal,
+    dealer_pos: int = 0,
+    starting_stacks: tuple[Chips, ...] | None = None,
+) -> GameState:
     n = cfg.num_players
     if n < 2:
         raise ValueError("Need at least 2 players.")
     if not (0 <= dealer_pos < n):
         raise ValueError("Invalid dealer_pos.")
 
-    stacks = [cfg.starting_stack] * n
+    if starting_stacks is None:
+        stacks = [cfg.starting_stack] * n
+    else:
+        if len(starting_stacks) != n:
+            raise ValueError("starting_stacks length must match num_players")
+        stacks = list(starting_stacks)
     active = [True] * n
     street_commit = [Chips(0)] * n
 
