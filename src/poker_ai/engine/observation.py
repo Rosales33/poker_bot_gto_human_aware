@@ -10,6 +10,9 @@ from poker_ai.engine.types import Chips, Street
 @dataclass(frozen=True, slots=True)
 class Observation:
     seat: int
+    dealer_pos: int
+    num_players: int
+
     street: Street
     pot: Chips
     current_bet: Chips
@@ -18,5 +21,6 @@ class Observation:
     stacks: tuple[Chips, ...]
     street_commit: tuple[Chips, ...]
     history: tuple[ActionRecord, ...]
+
     board: tuple[Card, ...]  # only revealed portion
     hole_cards: tuple[Card, Card]  # only for this seat

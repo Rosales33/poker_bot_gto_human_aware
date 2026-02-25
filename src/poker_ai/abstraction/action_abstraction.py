@@ -111,16 +111,16 @@ def get_abstract_actions(state: GameState, cfg: ActionAbstractionConfig) -> list
             candidates.append(AbstractAction(AbstractActionType.RAISE, 10_000.0))
 
     # filter by legal mapping
-    for c in candidates:
+    for cand in candidates:
         try:
-            a = abstract_to_action(state, c)
+            eng_action = abstract_to_action(state, cand)
         except ValueError:
             continue
-        if (a.type, int(a.amount)) in legal_set:
-            abs_actions.append(c)
+        if (eng_action.type, int(eng_action.amount)) in legal_set:
+            abs_actions.append(cand)
 
     # de-duplicate
     uniq: dict[tuple[AbstractActionType, float | None], AbstractAction] = {}
-    for a in abs_actions:
-        uniq[(a.type, a.param)] = a
+    for aa in abs_actions:
+        uniq[(aa.type, aa.param)] = aa
     return list(uniq.values())

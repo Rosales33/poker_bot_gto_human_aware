@@ -13,6 +13,8 @@ def observe(state: GameState, seat: int) -> Observation:
 
     return Observation(
         seat=seat,
+        dealer_pos=state.dealer_pos,
+        num_players=state.n,
         street=state.street,
         pot=state.pot,
         current_bet=state.current_bet,
