@@ -28,10 +28,12 @@ def _normalize(probs: NDArray[np.float64]) -> NDArray[np.float64]:
     return probs / s
 
 
-def _mix_seed(seed: int, seat: int, hist_len: int) -> int:
+def _mix_seed(seed: int, hand_id: int, seat: int, history_len: int, key_hash: int) -> int:
     x = seed & 0xFFFFFFFF
+    x = (x * 1000003) ^ (hand_id & 0xFFFFFFFF)
     x = (x * 1000003) ^ (seat & 0xFFFFFFFF)
-    x = (x * 1000003) ^ (hist_len & 0xFFFFFFFF)
+    x = (x * 1000003) ^ (history_len & 0xFFFFFFFF)
+    x = (x * 1000003) ^ (key_hash & 0xFFFFFFFF)
     return x & 0xFFFFFFFFFFFFFFFF
 
 
@@ -45,15 +47,19 @@ class BlueprintPolicy:
         Choose an action from the blueprint (average strategy) given the current state.
         """
         bb = int(self.stored.game_cfg.big_blind)
-        key = make_infoset_key(obs, bb=bb)
+        key = make_infoset_key(obs, bb=bb, history_len=8)
 
         legal_abs = get_abstract_actions(state, self.stored.action_abs_cfg)
         if not legal_abs:
             raise RuntimeError("No legal abstract actions available.")
 
+        # Deterministic RNG that depends on hand + infoset + local history length
+        rng = random.Random(
+            _mix_seed(self.seed, obs.hand_id, obs.seat, len(obs.history), hash(key))
+        )
+
         # If we never visited this infoset in training: play uniform over legal abstract actions
         if key not in self.stored.action_lists or key not in self.stored.strategy_sum:
-            rng = random.Random(_mix_seed(self.seed, obs.seat, len(obs.history)))
             aa = rng.choice(list(legal_abs))
             return abstract_to_action(state, aa)
 
@@ -66,24 +72,22 @@ class BlueprintPolicy:
 
         if not legal_idx:
             # fallback if mismatch between stored action list and current legal set
-            rng = random.Random(_mix_seed(self.seed, obs.seat, len(obs.history)))
             aa = rng.choice(list(legal_abs))
             return abstract_to_action(state, aa)
 
         probs = np.array([probs_full[i] for i in legal_idx], dtype=np.float64)
         probs = _normalize(probs)
 
-        rng = random.Random(_mix_seed(self.seed, obs.seat, len(obs.history)))
         x = rng.random()
         c = 0.0
-        chosen_j = legal_idx[-1]
+        chosen_idx = legal_idx[-1]
         for p, idx in zip(probs, legal_idx, strict=True):
             c += float(p)
             if x <= c:
-                chosen_j = idx
+                chosen_idx = idx
                 break
 
-        chosen_aa: AbstractAction = action_list[chosen_j]
+        chosen_aa: AbstractAction = action_list[chosen_idx]
         return abstract_to_action(state, chosen_aa)
 
 

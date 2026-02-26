@@ -51,18 +51,21 @@ class InfoSetKey:
     current_bet_bucket: int
     stack_bucket: int
     history_code: int
+    facing_to_call_bucket: int
 
 
-def make_infoset_key(obs: Observation, bb: int) -> InfoSetKey:
+def make_infoset_key(obs: Observation, bb: int, history_len: int = 8) -> InfoSetKey:
     hb = bucket_hand(obs)
-
-    # position relative to dealer/button: 0=BTN, 1=SB, 2=BB, 3=UTG, ...
     pos = (obs.seat - obs.dealer_pos) % obs.num_players
 
     pot_bucket = _bucket_log2_bb(int(obs.pot), bb)
     bet_bucket = _bucket_log2_bb(int(obs.current_bet), bb)
     stack_bucket = _bucket_log2_bb(int(obs.stacks[obs.seat]), bb)
-    hist = _history_abbrev(obs, last_n=6)
+
+    to_call = max(0, int(obs.current_bet) - int(obs.street_commit[obs.seat]))
+    facing_bucket = _bucket_log2_bb(to_call, bb)
+
+    hist = _history_abbrev(obs, last_n=history_len)
 
     return InfoSetKey(
         street=obs.street,
@@ -70,6 +73,7 @@ def make_infoset_key(obs: Observation, bb: int) -> InfoSetKey:
         hand_bucket=hb.bucket_id,
         pot_bucket=pot_bucket,
         current_bet_bucket=bet_bucket,
+        facing_to_call_bucket=facing_bucket,
         stack_bucket=stack_bucket,
         history_code=hist,
     )

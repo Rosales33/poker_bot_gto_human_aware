@@ -28,6 +28,7 @@ class MCCFRConfig:
     action_abs: ActionAbstractionConfig = ActionAbstractionConfig()
     # discounting can help stability; keep 1.0 for now
     regret_discount: float = 1.0
+    history_len: int = 8
 
 
 def _regret_matching(regrets: NDArray[np.float64]) -> NDArray[np.float64]:
@@ -131,7 +132,7 @@ class MCCFRTrainer:
         seat = state.to_act
 
         obs = observe(state, seat)
-        key = make_infoset_key(obs, bb=self._bb())
+        key = make_infoset_key(obs, bb=self._bb(), history_len=self.cfg.history_len)
 
         # terminal safety: some states may have no legal abstract actions due to mapping; fall back to engine legal?
         # In practice, our get_abstract_actions filters by engine legality already.

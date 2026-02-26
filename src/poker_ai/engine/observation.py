@@ -12,6 +12,7 @@ class Observation:
     seat: int
     dealer_pos: int
     num_players: int
+    hand_id: int
 
     street: Street
     pot: Chips
